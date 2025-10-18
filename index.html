@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBook to TXT Merger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            font-weight: 500;
+            background: #e1d3ff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #000000;
+            margin-bottom: 10px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #000000;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f1ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8e9ff;
+            transform: scale(1.02);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .upload-hint {
+            color: #000000;
+            font-size: 0.85em;
+        }
+
+        .file-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            background: #f8f9ff;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        .file-name {
+            color: #000000;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remove-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .remove-btn:hover {
+            background: #ff3838;
+        }
+
+        .convert-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .convert-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+            color: #000000;
+        }
+
+        .status.processing {
+            background: #fff3cd;
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e1d3ff;
+            font-size: 0.85em;
+            color: #000000;
+        }
+
+        .footer p {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .footer strong {
+            font-weight: 600;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .credit {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e1d3ff;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 eBook to TXT Merger</h1>
+        <p class="subtitle">Merge multiple eBook files into one TXT document<br>Supports: EPUB, MOBI, AZW, AZW3, TXT, HTML</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Click to select eBook files</div>
+            <div class="upload-hint">or drag and drop them here</div>
+            <input type="file" id="fileInput" accept=".epub,.mobi,.azw,.azw3,.txt,.html,.htm" multiple>
+        </div>
+
+        <div class="file-list" id="fileList"></div>
+
+        <button class="convert-btn" id="convertBtn" disabled>Merge eBooks to TXT</button>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="footer">
+            <p><strong>Privacy:</strong> All files are processed locally in your browser. Nothing is uploaded to any server. Your files never leave your device.</p>
+            
+            <p><strong>Note:</strong> This tool works best with unprotected eBook files. DRM-protected files may not extract properly. EPUB files typically provide the cleanest text extraction, while MOBI/AZW formats use basic extraction methods.</p>
+            
+            <p><strong>Free to use.</strong> No ads, no tracking, no data collection.</p>
+            
+            <p><strong>Found a bug?</strong> Report it on <a href="https://www.reddit.com/user/Noar_A/" target="_blank">Reddit</a></p>
+            
+            <div class="credit">Made by Noar A.</div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const convertBtn = document.getElementById('convertBtn');
+        const status = document.getElementById('status');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+
+        let selectedFiles = [];
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // File selection
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            const validExtensions = ['.epub', '.mobi', '.azw', '.azw3', '.txt', '.html', '.htm'];
+            const validFiles = Array.from(files).filter(file => {
+                const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                return validExtensions.includes(ext);
+            });
+            selectedFiles = [...selectedFiles, ...validFiles];
+            updateFileList();
+            updateConvertButton();
+        }
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span class="file-name">${file.name}</span>
+                    <button class="remove-btn" onclick="removeFile(${index})">Remove</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+            updateConvertButton();
+        }
+
+        function updateConvertButton() {
+            convertBtn.disabled = selectedFiles.length === 0;
+        }
+
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+        }
+
+        function updateProgress(percent) {
+            progressBar.style.display = 'block';
+            progressFill.style.width = percent + '%';
+        }
+
+        function hideProgress() {
+            progressBar.style.display = 'none';
+            progressFill.style.width = '0%';
+        }
+
+        async function extractTextFromEpub(file) {
+            const zip = new JSZip();
+            const contents = await zip.loadAsync(file);
+            
+            let textContent = '';
+            const htmlFiles = [];
+            
+            // Find all HTML/XHTML files
+            contents.forEach((relativePath, file) => {
+                if (relativePath.match(/\.(html|xhtml|htm)$/i) && !file.dir) {
+                    htmlFiles.push(relativePath);
+                }
+            });
+            
+            // Sort files to maintain order
+            htmlFiles.sort();
+            
+            // Extract text from each HTML file
+            for (const htmlFile of htmlFiles) {
+                const content = await contents.file(htmlFile).async('string');
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+                
+                // Remove script and style tags
+                const scripts = doc.querySelectorAll('script, style');
+                scripts.forEach(script => script.remove());
+                
+                // Get text content
+                const text = doc.body.textContent || '';
+                textContent += text.replace(/\s+/g, ' ').trim() + '\n\n';
+            }
+            
+            return textContent.trim();
+        }
+
+        async function extractTextFromMobi(file) {
+            // MOBI files are complex binary format
+            // For basic text extraction, we'll read as text and try to extract readable content
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            // Convert to string
+            let text = '';
+            for (let i = 0; i < uint8Array.length; i++) {
+                const char = uint8Array[i];
+                // Only include printable ASCII and common characters
+                if ((char >= 32 && char <= 126) || char === 10 || char === 13) {
+                    text += String.fromCharCode(char);
+                }
+            }
+            
+            // Clean up the text
+            text = text.replace(/\s+/g, ' ').trim();
+            
+            return text;
+        }
+
+        async function extractTextFromTxt(file) {
+            return await file.text();
+        }
+
+        async function extractTextFromHtml(file) {
+            const content = await file.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(content, 'text/html');
+            
+            // Remove script and style tags
+            const scripts = doc.querySelectorAll('script, style');
+            scripts.forEach(script => script.remove());
+            
+            // Get text content
+            const text = doc.body.textContent || doc.documentElement.textContent || '';
+            return text.replace(/\s+/g, ' ').trim();
+        }
+
+        async function extractTextFromFile(file) {
+            const extension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+            
+            switch(extension) {
+                case '.epub':
+                    return await extractTextFromEpub(file);
+                case '.mobi':
+                case '.azw':
+                case '.azw3':
+                    return await extractTextFromMobi(file);
+                case '.txt':
+                    return await extractTextFromTxt(file);
+                case '.html':
+                case '.htm':
+                    return await extractTextFromHtml(file);
+                default:
+                    throw new Error('Unsupported file format');
+            }
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            showStatus('Processing eBook files...', 'processing');
+            updateProgress(0);
+            convertBtn.disabled = true;
+
+            try {
+                let mergedText = '';
+                
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    showStatus(`Processing: ${file.name} (${i + 1}/${selectedFiles.length})`, 'processing');
+                    updateProgress(((i) / selectedFiles.length) * 100);
+                    
+                    const text = await extractTextFromFile(file);
+                    
+                    // Add separator with filename
+                    mergedText += `\n\n${'='.repeat(80)}\n`;
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBook to TXT Merger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            font-weight: 500;
+            background: #e1d3ff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #000000;
+            margin-bottom: 10px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #000000;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f1ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8e9ff;
+            transform: scale(1.02);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .upload-hint {
+            color: #000000;
+            font-size: 0.85em;
+        }
+
+        .file-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            background: #f8f9ff;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        .file-name {
+            color: #000000;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remove-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .remove-btn:hover {
+            background: #ff3838;
+        }
+
+        .convert-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .convert-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+            color: #000000;
+        }
+
+        .status.processing {
+            background: #fff3cd;
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e1d3ff;
+            font-size: 0.85em;
+            color: #000000;
+        }
+
+        .footer p {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .footer strong {
+            font-weight: 600;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .credit {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e1d3ff;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 eBook to TXT Merger</h1>
+        <p class="subtitle">Merge multiple eBook files into one TXT document<br>Supports: EPUB, MOBI, AZW, AZW3, TXT, HTML</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Click to select eBook files</div>
+            <div class="upload-hint">or drag and drop them here</div>
+            <input type="file" id="fileInput" accept=".epub,.mobi,.azw,.azw3,.txt,.html,.htm" multiple>
+        </div>
+
+        <div class="file-list" id="fileList"></div>
+
+        <button class="convert-btn" id="convertBtn" disabled>Merge eBooks to TXT</button>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="footer">
+            <p><strong>Privacy:</strong> All files are processed locally in your browser. Nothing is uploaded to any server. Your files never leave your device.</p>
+            
+            <p><strong>Note:</strong> This tool works best with unprotected eBook files. DRM-protected files may not extract properly. EPUB files typically provide the cleanest text extraction, while MOBI/AZW formats use basic extraction methods.</p>
+            
+            <p><strong>Free to use.</strong> No ads, no tracking, no data collection.</p>
+            
+            <p><strong>Found a bug?</strong> Report it on <a href="https://www.reddit.com/user/Noar_A/" target="_blank">Reddit</a></p>
+            
+            <div class="credit">Made by Noar A.</div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const convertBtn = document.getElementById('convertBtn');
+        const status = document.getElementById('status');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+
+        let selectedFiles = [];
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // File selection
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            const validExtensions = ['.epub', '.mobi', '.azw', '.azw3', '.txt', '.html', '.htm'];
+            const validFiles = Array.from(files).filter(file => {
+                const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                return validExtensions.includes(ext);
+            });
+            selectedFiles = [...selectedFiles, ...validFiles];
+            updateFileList();
+            updateConvertButton();
+        }
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span class="file-name">${file.name}</span>
+                    <button class="remove-btn" onclick="removeFile(${index})">Remove</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+            updateConvertButton();
+        }
+
+        function updateConvertButton() {
+            convertBtn.disabled = selectedFiles.length === 0;
+        }
+
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.textContent = message;
+        }
+
+        function updateProgress(percent) {
+            progressBar.style.display = 'block';
+            progressFill.style.width = percent + '%';
+        }
+
+        function hideProgress() {
+            progressBar.style.display = 'none';
+            progressFill.style.width = '0%';
+        }
+
+        async function extractTextFromEpub(file) {
+            const zip = new JSZip();
+            const contents = await zip.loadAsync(file);
+            
+            let textContent = '';
+            const htmlFiles = [];
+            
+            // Find all HTML/XHTML files
+            contents.forEach((relativePath, file) => {
+                if (relativePath.match(/\.(html|xhtml|htm)$/i) && !file.dir) {
+                    htmlFiles.push(relativePath);
+                }
+            });
+            
+            // Sort files to maintain order
+            htmlFiles.sort();
+            
+            // Extract text from each HTML file
+            for (const htmlFile of htmlFiles) {
+                const content = await contents.file(htmlFile).async('string');
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+                
+                // Remove script and style tags
+                const scripts = doc.querySelectorAll('script, style');
+                scripts.forEach(script => script.remove());
+                
+                // Get text content
+                const text = doc.body.textContent || '';
+                textContent += text.replace(/\s+/g, ' ').trim() + '\n\n';
+            }
+            
+            return textContent.trim();
+        }
+
+        async function extractTextFromMobi(file) {
+            // MOBI files are complex binary format
+            // For basic text extraction, we'll read as text and try to extract readable content
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            // Convert to string
+            let text = '';
+            for (let i = 0; i < uint8Array.length; i++) {
+                const char = uint8Array[i];
+                // Only include printable ASCII and common characters
+                if ((char >= 32 && char <= 126) || char === 10 || char === 13) {
+                    text += String.fromCharCode(char);
+                }
+            }
+            
+            // Clean up the text
+            text = text.replace(/\s+/g, ' ').trim();
+            
+            return text;
+        }
+
+        async function extractTextFromTxt(file) {
+            return await file.text();
+        }
+
+        async function extractTextFromHtml(file) {
+            const content = await file.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(content, 'text/html');
+            
+            // Remove script and style tags
+            const scripts = doc.querySelectorAll('script, style');
+            scripts.forEach(script => script.remove());
+            
+            // Get text content
+            const text = doc.body.textContent || doc.documentElement.textContent || '';
+            return text.replace(/\s+/g, ' ').trim();
+        }
+
+        async function extractTextFromFile(file) {
+            const extension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+            
+            switch(extension) {
+                case '.epub':
+                    return await extractTextFromEpub(file);
+                case '.mobi':
+                case '.azw':
+                case '.azw3':
+                    return await extractTextFromMobi(file);
+                case '.txt':
+                    return await extractTextFromTxt(file);
+                case '.html':
+                case '.htm':
+                    return await extractTextFromHtml(file);
+                default:
+                    throw new Error('Unsupported file format');
+            }
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            showStatus('Processing eBook files...', 'processing');
+            updateProgress(0);
+            convertBtn.disabled = true;
+
+            try {
+                let mergedText = '';
+                
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    showStatus(`Processing: ${file.name} (${i + 1}/${selectedFiles.length})`, 'processing');
+                    updateProgress(((i) / selectedFiles.length) * 100);
+                    
+                    const text = await extractTextFromFile(file);
+                    
+                    // Add separator with filename
+                    mergedText += `\n\n${'='.repeat(80)}\n`;
+                    mergedText += `FILE: ${file.name}\n`;
+                    mergedText += `${'='.repeat(80)}\n\n`;
+                    mergedText += text + '\n\n';
+                }
+
+                updateProgress(100);
+                
+                // Create and download the TXT file
+                const blob = new Blob([mergedText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'merged_ebooks.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showStatus('✓ Success! Your merged TXT file has been downloaded.', 'success');
+                hideProgress();
+                
+            } catch (error) {
+                console.error(error);
+                showStatus('Error processing files. Please make sure all files are valid eBook files.', 'error');
+                hideProgress();
+            } finally {
+                convertBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
+```
+
+Perfect! I've added:
+
+✅ **Privacy note** - Explains files stay local in the browser  
+✅ **DRM/protection disclaimer** - Mentions unprotected files work best and EPUB has cleanest extraction  
+✅ **Bug reporting link** - Links to your Reddit profile  
+✅ **"Made by Noar A."** credit at the bottom  
+✅ **Free to use statement** - No ads, tracking, or data collection
+
+The footer looks clean and professional. Ready to upload to Neocities! Good luck with your Reddit post. 🎉                    mergedText += `FILE: ${file.name}\n`;
+                    mergedText += `${'='.repeat(80)}\n\n`;
+                    mergedText += text + '\n\n';
+                }
+
+                updateProgress(100);
+                
+                // Create and download the TXT file
+                const blob = new Blob([mergedText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'merged_ebooks.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showStatus('✓ Success! Your merged TXT file has been downloaded.', 'success');
+                hideProgress();
+                
+            } catch (error) {
+                console.error(error);
+                showStatus('Error processing files. Please make sure all files are valid eBook files.', 'error');
+                hideProgress();
+            } finally {
+                convertBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
